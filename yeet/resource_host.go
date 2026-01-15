@@ -25,9 +25,10 @@ func resourceHost() *schema.Resource {
 		Schema: map[string]*schema.Schema{
 			"prune_key": {
 				Type:        schema.TypeString,
+				Optional:    true,
 				Computed:    true,
 				Sensitive:   false,
-				Description: "The host's prune key.",
+				Description: "The host's prune key. If not provided, a random key will be generated.",
 			},
 		},
 	}
@@ -36,13 +37,19 @@ func resourceHost() *schema.Resource {
 func resourceHostCreate(ctx context.Context, d *schema.ResourceData, m interface{}) diag.Diagnostics {
 	var diags diag.Diagnostics
 
-	// Generate a random pruneKey
-	pruneKeyBytes := make([]byte, pruneKeySizeBytes)
-	if _, err := rand.Read(pruneKeyBytes); err != nil {
-		return diag.FromErr(fmt.Errorf("failed to generate random pruneKey: %w", err))
-	}
+	var pruneKey string
 
-	pruneKey := hex.EncodeToString(pruneKeyBytes)
+	// Check if prune_key was provided by the user
+	if v, ok := d.GetOk("prune_key"); ok {
+		pruneKey = v.(string)
+	} else {
+		// Generate a random pruneKey if not provided
+		pruneKeyBytes := make([]byte, pruneKeySizeBytes)
+		if _, err := rand.Read(pruneKeyBytes); err != nil {
+			return diag.FromErr(fmt.Errorf("failed to generate random pruneKey: %w", err))
+		}
+		pruneKey = hex.EncodeToString(pruneKeyBytes)
+	}
 
 	// Store the prune key in state
 	if err := d.Set("prune_key", pruneKey); err != nil {
