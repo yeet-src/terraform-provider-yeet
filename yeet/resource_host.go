@@ -25,9 +25,6 @@ func resourceHost() *schema.Resource {
 				Computed:    true,
 				Sensitive:   false,
 				Description: "The host's prune key. If not provided, a random key will be generated.",
-				DefaultFunc: func() (interface{}, error) {
-					return uuid.New().String(), nil
-				},
 			},
 		},
 	}
@@ -36,8 +33,14 @@ func resourceHost() *schema.Resource {
 func resourceHostCreate(ctx context.Context, d *schema.ResourceData, m interface{}) diag.Diagnostics {
 	var diags diag.Diagnostics
 
-	// Get prune_key (will be set by DefaultFunc if not provided by user)
+	// Get prune_key or generate if not provided
 	pruneKey := d.Get("prune_key").(string)
+	if pruneKey == "" {
+		pruneKey = uuid.New().String()
+		if err := d.Set("prune_key", pruneKey); err != nil {
+			return diag.FromErr(fmt.Errorf("failed to set prune_key: %w", err))
+		}
+	}
 
 	d.SetId(pruneKey)
 
