@@ -3,19 +3,15 @@ package yeet
 import (
 	"bytes"
 	"context"
-	"crypto/rand"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
 
+	"github.com/google/uuid"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
-
-// pruneKeySizeBytes is the size of the random prune key.
-const pruneKeySizeBytes = 32
 
 func resourceHost() *schema.Resource {
 	return &schema.Resource{
@@ -29,6 +25,9 @@ func resourceHost() *schema.Resource {
 				Computed:    true,
 				Sensitive:   false,
 				Description: "The host's prune key. If not provided, a random key will be generated.",
+				DefaultFunc: func() (interface{}, error) {
+					return uuid.New().String(), nil
+				},
 			},
 		},
 	}
@@ -37,24 +36,8 @@ func resourceHost() *schema.Resource {
 func resourceHostCreate(ctx context.Context, d *schema.ResourceData, m interface{}) diag.Diagnostics {
 	var diags diag.Diagnostics
 
-	var pruneKey string
-
-	// Check if prune_key was provided by the user
-	if v, ok := d.GetOk("prune_key"); ok {
-		pruneKey = v.(string)
-	} else {
-		// Generate a random pruneKey if not provided
-		pruneKeyBytes := make([]byte, pruneKeySizeBytes)
-		if _, err := rand.Read(pruneKeyBytes); err != nil {
-			return diag.FromErr(fmt.Errorf("failed to generate random pruneKey: %w", err))
-		}
-		pruneKey = hex.EncodeToString(pruneKeyBytes)
-	}
-
-	// Store the prune key in state
-	if err := d.Set("prune_key", pruneKey); err != nil {
-		return diag.FromErr(err)
-	}
+	// Get prune_key (will be set by DefaultFunc if not provided by user)
+	pruneKey := d.Get("prune_key").(string)
 
 	d.SetId(pruneKey)
 
